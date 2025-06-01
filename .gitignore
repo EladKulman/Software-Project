@@ -1,0 +1,49 @@
+# === PYTHON ===
+__pycache__/
+*.py[cod]
+*.so
+*.egg
+*.egg-info/
+dist/
+build/
+.eggs/
+*.log
+*.sqlite3
+*.db
+*.pkl
+*.env
+.env
+.venv/
+venv/
+pip-wheel-metadata/
+*.ipynb_checkpoints
+.mypy_cache/
+.pytest_cache/
+
+# VSCode settings
+.vscode/
+
+# === C / C++ ===
+*.o
+*.obj
+*.out
+*.exe
+*.a
+*.so
+*.dll
+*.dylib
+*.log
+*.gcno
+*.gcda
+*.gcov
+*.gch
+*.dSYM/
+*.stackdump
+
+# === General ===
+.DS_Store
+*.swp
+*.tmp
+*.bak
+*.~*
+*.orig
