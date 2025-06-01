@@ -60,31 +60,54 @@ int main(int argc, char *argv[]) {
     return 0;
 }
 
-int parse_arguments(int argc, char *argv[], int *K, int *iter) {
-    if (argc < 2 || argc > 3) {
+int parse_arguments(int argc, char *argv[], int *K, int *iter)
+{
+    /* accept either 1 or 2 user-supplied arguments (program name + …) */
+    if (argc != 2 && argc != 3) {
         printf("An Error Has Occurred\n");
         return 1;
     }
-    
-    /* Parse K */
-    *K = atoi(argv[1]);
-    if (*K <= 0) {
-        printf("Incorrect number of clusters!\n");
-        return 1;
+
+    /* ----------- parse K -------------------------------------------------- */
+    {
+        char   *endptr;
+        double  k_val = strtod(argv[1], &endptr);
+
+        /*  valid number, nothing extra afterwards, and an integer value?   */
+        if (endptr == argv[1] || *endptr != '\0' || floor(k_val) != k_val) {
+            printf("Incorrect number of clusters!\n");
+            return 1;
+        }
+        *K = (int)k_val;
+
+        /*  K must be at least 2 (python’s  k < 2  check)                  */
+        if (*K < 2) {
+            printf("Incorrect number of clusters!\n");
+            return 1;
+        }
     }
-    
-    /* Parse iter if provided, otherwise use default */
+
+    /* ----------- parse max_iter ------------------------------------------ */
     if (argc == 3) {
-        *iter = atoi(argv[2]);
-        if (*iter < 1 || *iter > 1000) {
+        char   *endptr;
+        double  it_val = strtod(argv[2], &endptr);
+
+        if (endptr == argv[2] || *endptr != '\0' || floor(it_val) != it_val) {
+            printf("Incorrect maximum iteration!\n");
+            return 1;
+        }
+        *iter = (int)it_val;
+
+        /*  strict:   1 < iter < 1000   (--> allowed 2 … 999)              */
+        if (*iter <= 1 || *iter >= 1000) {
             printf("Incorrect maximum iteration!\n");
             return 1;
         }
     } else {
-        *iter = DEFAULT_ITER;
+        *iter = DEFAULT_ITER;   /* 400 */
     }
-    
-    return 0;
+
+    return 0;   /*  success */
 }
 
 Dataset* read_data(void) {

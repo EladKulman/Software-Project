@@ -196,7 +196,7 @@ def main():
     else:
         class Args:
             def __init__(self):
-                self.test_python = False
+                self.test_python = True
                 self.test_c = True
                 self.tests_dir = "tests"
 
