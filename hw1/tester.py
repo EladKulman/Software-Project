@@ -9,6 +9,8 @@ import subprocess
 import tempfile
 from typing import Optional
 
+USE_ARGS = False
+
 LINE_CONFIG_REGEX = re.compile(
     r"(?P<idx>\d+)\. k=(?P<k>\d+), max_iter\s+=\s+(?:not provided|(?P<max_iter>\d+))"
 )
@@ -189,7 +191,16 @@ def execute(config, test_type, input_file=None) -> subprocess.CompletedProcess[s
 
 
 def main():
-    args = setup_argparser().parse_args()
+    if USE_ARGS:
+        args = setup_argparser().parse_args()
+    else:
+        class Args:
+            def __init__(self):
+                self.test_python = False
+                self.test_c = True
+                self.tests_dir = "tests"
+
+        args = Args()
 
     tests_dir = Path(args.tests_dir)
 

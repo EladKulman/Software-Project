@@ -40,24 +40,31 @@ def parse_args():
         raise ValueError(GENERIC_ERR)
 
     try:
-        k = int(sys.argv[1])
+        k = float(sys.argv[1])
+        if not k.is_integer():
+            raise ValueError
+        k = int(k)
     except ValueError:
-        raise ValueError(GENERIC_ERR)
+        raise ValueError(NUM_CLUST_ERR)
 
     if len(sys.argv) == 3:
         try:
-            max_iter = int(sys.argv[2])
+            iter_ = float(sys.argv[2])
+            if not iter_.is_integer():
+                raise ValueError
+            iter_ = int(iter_)
         except ValueError:
-            raise ValueError(GENERIC_ERR)
+            raise ValueError(MAX_ITER_ERR)
     else:
-        max_iter = DEFAULT_ITER
+        iter_ = DEFAULT_ITER
 
-    if not (1 < max_iter < 1000):
+    if not (1 < iter_ < 1000):
         raise ValueError(MAX_ITER_ERR)
-    if k < 2:            # upper bound (k < N) checked later once N is known
+    if k < 2:
         raise ValueError(NUM_CLUST_ERR)
 
-    return k, max_iter
+    return k, iter_
+
 
 
 # ---------- input ----------------------------------------------------------- #
