@@ -19,9 +19,7 @@ DUMMY_INPUT = """\
 1,2,3
 4,5,6
 7,8,9
-1,2,3
-
-"""
+1,2,3\n"""
 
 INVALID_PARAMETERS_VALUES = (
     "-1",
@@ -96,7 +94,6 @@ def generate_random_input():
 
         print(*point, sep=",", file=buf)
 
-    buf.write("\n")
     buf.flush()
     buf.detach()
     file.seek(0)  # Return reading position to the start of the file
