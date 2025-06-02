@@ -1,15 +1,14 @@
 import sys
 import math
 
-EPS = 0.001            # convergence threshold
-DEFAULT_ITER = 400     # default maximum iterations
+EPS = 0.001
+DEFAULT_ITER = 400
 
 NUM_CLUST_ERR = "Incorrect number of clusters!"
 MAX_ITER_ERR = "Incorrect maximum iteration!"
-GENERIC_ERR   = "An Error Has Occurred"
+GENERIC_ERR = "An Error Has Occurred"
 
 
-# ---------- helpers --------------------------------------------------------- #
 def euclid_sq(p, q):
     return sum((pi - qi) ** 2 for pi, qi in zip(p, q))
 
@@ -22,7 +21,6 @@ def div_pt(p, denom):
     return [pi / denom for pi in p]
 
 
-# ---------- argument parsing ------------------------------------------------ #
 def parse_args():
     if len(sys.argv) not in (2, 3):
         raise ValueError(GENERIC_ERR)
@@ -54,13 +52,11 @@ def parse_args():
     return k, iter_
 
 
-
-# ---------- input ----------------------------------------------------------- #
 def read_dataset():
     data = []
     dim = None
     for raw in sys.stdin.read().splitlines():
-        if raw.strip() == "":          # ignore expected extra empty row
+        if raw.strip() == "":
             continue
         try:
             point = [float(x) for x in raw.strip().split(",")]
@@ -79,7 +75,6 @@ def read_dataset():
     return data
 
 
-# ---------- core algorithm -------------------------------------------------- #
 def kmeans(data, k, max_iter):
     n = len(data)
     d = len(data[0])
@@ -87,27 +82,24 @@ def kmeans(data, k, max_iter):
     if k >= n:
         raise ValueError(NUM_CLUST_ERR)
 
-    centroids = [data[i][:] for i in range(k)]  # first-k datapoints (deep copy)
+    centroids = [data[i][:] for i in range(k)]
 
     for _ in range(max_iter):
-        # Assignment ---------------------------------------------------------
         clusters = [[] for _ in range(k)]
         for p in data:
             idx = min(range(k), key=lambda i: euclid_sq(p, centroids[i]))
             clusters[idx].append(p)
 
-        # Update -------------------------------------------------------------
         new_centroids = []
         for idx, cluster in enumerate(clusters):
-            if cluster:  # non-empty
+            if cluster:
                 acc = [0.0] * d
                 for p in cluster:
                     acc = add_pts(acc, p)
                 new_centroids.append(div_pt(acc, len(cluster)))
-            else:        # keep the old centroid if cluster is empty
+            else:
                 new_centroids.append(centroids[idx])
 
-        # Convergence test ---------------------------------------------------
         deltas = [math.sqrt(euclid_sq(nc, oc))
                   for nc, oc in zip(new_centroids, centroids)]
         if max(deltas) < EPS:
@@ -119,7 +111,6 @@ def kmeans(data, k, max_iter):
     return centroids
 
 
-# ---------- output ---------------------------------------------------------- #
 def fmt(c):
     return ",".join(f"{coord:.4f}" for coord in c)
 
@@ -127,8 +118,8 @@ def fmt(c):
 def main():
     try:
         k, max_iter = parse_args()
-        data        = read_dataset()
-        centroids   = kmeans(data, k, max_iter)
+        data = read_dataset()
+        centroids = kmeans(data, k, max_iter)
         for c in centroids:
             print(fmt(c))
     except ValueError as e:
