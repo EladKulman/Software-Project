@@ -1,15 +1,3 @@
-#!/usr/bin/env python3
-"""
-kmeans.py – K-means clustering for Software-Project assignment
-Usage examples (inside the course’s Docker image):
-
-    # K = 3, max-iter = 100
-    $ python3 kmeans.py 3 100 < input_data.txt
-
-    # K = 4, default max-iter (=400)
-    $ python3 kmeans.py 4 < input_data.txt
-"""
-
 import sys
 import math
 
