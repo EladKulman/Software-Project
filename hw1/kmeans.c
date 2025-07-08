@@ -6,39 +6,187 @@
 #define DEFAULT_ITER 400
 #define EPSILON 0.001
 
+/*
+ * This program implements the k-means clustering algorithm in C.
+ * It reads a dataset from standard input, parses command-line arguments,
+ * and performs clustering to find the centroids of the clusters.
+ */
+
+/*
+ * Structure representing a vector with its data and dimension.
+ */
 typedef struct
 {
-    double *data;
-    int dimension;
+    double *data;  /* Array of data points */
+    int dimension; /* Dimension of the vector */
 } Vector;
 
+/*
+ * Structure representing a cluster with its vectors
+ */
 typedef struct
 {
-    Vector *vectors;
-    int count;
-    int dimension;
+    Vector *data; /* Array of data vectors */
+    int size;
+    int capacity;
+} VectorList;
+
+/*
+ * Structure representing a dataset containing multiple vectors.
+ */
+typedef struct
+{
+    Vector *vectors; /* Array of vectors */
+    int count;       /* Number of vectors in the dataset */
+    int dimension;   /* Dimension of the vectors in the dataset */
 } Dataset;
 
+/*
+ * Parses command-line arguments to extract the number of clusters (K) and maximum iterations.
+ *
+ * Args:
+ *   argc: Number of command-line arguments.
+ *   argv: Array of command-line arguments.
+ *   K: Pointer to store the number of clusters.
+ *   iter: Pointer to store the maximum number of iterations.
+ *
+ * Returns:
+ *   0 on success, 1 on failure.
+ */
 int parse_arguments(int argc, char *argv[], int *K, int *iter);
-Dataset *read_data(void);
-void free_dataset(Dataset *dataset);
-double euclidean_distance(Vector *v1, Vector *v2);
-void kmeans(Dataset *dataset, int K, int max_iter);
-Vector *parse_vector(char *line, int expected_dim);
-void free_vector(Vector *vector);
-int my_strlen(const char *str);
-void my_strcpy(char *dest, const char *src);
-char *my_strtok(char *str, const char *delim);
 
-int main(int argc, char *argv[])
+/*
+ * Reads the dataset from standard input.
+ *
+ * Returns:
+ *   Pointer to the dataset structure, or NULL on failure.
+ */
+Dataset *read_data(void);
+
+/*
+ * Frees the memory allocated for a dataset.
+ *
+ * Args:
+ *   dataset: Pointer to the dataset to free.
+ */
+void free_dataset(Dataset *dataset);
+
+/*
+ * Calculates the Euclidean distance between two vectors.
+ *
+ * Args:
+ *   v1: Pointer to the first vector.
+ *   v2: Pointer to the second vector.
+ *
+ * Returns:
+ *   The Euclidean distance between the two vectors.
+ */
+double euclidean_distance(Vector *v1, Vector *v2);
+
+/*
+ * Performs the k-means clustering algorithm.
+ *
+ * Args:
+ *   dataset: Pointer to the dataset.
+ *   K: Number of clusters.
+ *   max_iter: Maximum number of iterations.
+ */
+void kmeans(Dataset *dataset, int K, int max_iter);
+
+/*
+ * Parses a line of input to create a vector.
+ *
+ * Args:
+ *   line: Input line containing vector data.
+ *   expected_dim: Expected dimension of the vector (-1 if unknown).
+ *
+ * Returns:
+ *   Pointer to the created vector, or NULL on failure.
+ */
+Vector *parse_vector(char *line, int expected_dim);
+
+/*
+ * Frees the memory allocated for a vector.
+ *
+ * Args:
+ *   vector: Pointer to the vector to free.
+ */
+void free_vector(Vector *vector);
+
+int my_strlen(const char *str);
+
+void append_to_cluster(VectorList *cluster, Vector *vec)
 {
-    int K, iter;
-    Dataset *dataset;
-    if (parse_arguments(argc, argv, &K, &iter) != 0)
+    if (cluster->size >= cluster->capacity)
     {
-        return 1;
+        cluster->capacity *= 2;
+        cluster->data = realloc(cluster->data, cluster->capacity * sizeof(Vector));
     }
-    dataset = read_data();
+    cluster->data[cluster->size++] = *vec;
+}
+
+Dataset *create_sample_dataset(void) {
+    Dataset *dataset;
+    int i, j;
+    double values[4][3] = {
+        {1.0, 1.0, 1.0},
+        {2.0, 2.0, 2.0},
+        {100.0, 100.0, 100.0},
+        {101.0, 101.0, 101.0}
+    };
+
+    dataset = (Dataset *)malloc(sizeof(Dataset));
+    if (dataset == NULL) {
+        printf("Allocation failed for dataset\n");
+        exit(1);
+    }
+
+    dataset->count = 4;
+    dataset->dimension = 3;
+
+    dataset->vectors = (Vector *)malloc(dataset->count * sizeof(Vector));
+    if (dataset->vectors == NULL) {
+        printf("Allocation failed for vectors\n");
+        free(dataset);
+        exit(1);
+    }
+
+    for (i = 0; i < dataset->count; i++) {
+        dataset->vectors[i].dimension = dataset->dimension;
+        dataset->vectors[i].data = (double *)malloc(dataset->dimension * sizeof(double));
+
+        if (dataset->vectors[i].data == NULL) {
+            printf("Allocation failed for vector %d\n", i);
+            /* Free all previously allocated memory */
+            for (j = 0; j < i; j++) {
+                free(dataset->vectors[j].data);
+            }
+            free(dataset->vectors);
+            free(dataset);
+            exit(1);
+        }
+
+        for (j = 0; j < dataset->dimension; j++) {
+            dataset->vectors[i].data[j] = values[i][j];
+        }
+    }
+
+    return dataset;
+}
+
+int main(void)
+{
+    int K, max_iter;
+    Dataset *dataset;
+    /*
+    *  if (parse_arguments(argc, argv, &K, &max_iter) != 0)
+    * {
+    *    return 1;
+    *}
+    */   
+    K = 2;
+    max_iter = 200;
+    dataset = create_sample_dataset();
     if (dataset == NULL)
     {
         printf("An Error Has Occurred\n");
@@ -50,7 +198,7 @@ int main(int argc, char *argv[])
         free_dataset(dataset);
         return 1;
     }
-    kmeans(dataset, K, iter);
+    kmeans(dataset, K, max_iter);
     free_dataset(dataset);
     return 0;
 }
@@ -266,24 +414,23 @@ void kmeans(Dataset *dataset, int K, int max_iter)
 {
     Vector *centroids;
     Vector *new_centroids;
-    int *assignments;
-    int *cluster_sizes;
+    VectorList *clusters;
     int i, j, k, iter;
     double max_change;
-    int closest_cluster;
+    int closest_cluster_index;
     double min_distance, distance;
 
     centroids = malloc(K * sizeof(Vector));
     new_centroids = malloc(K * sizeof(Vector));
-    assignments = malloc(dataset->count * sizeof(int));
-    cluster_sizes = malloc(K * sizeof(int));
+    clusters = malloc(K * sizeof(VectorList));
 
-    if (!centroids || !new_centroids || !assignments || !cluster_sizes)
+    if (!centroids || !new_centroids || !clusters)
     {
         printf("An Error Has Occurred\n");
         return;
     }
 
+    /* 1. Initialize centroids by selecting k first points from the dataset */
     for (k = 0; k < K; k++)
     {
         centroids[k].dimension = dataset->dimension;
@@ -303,49 +450,56 @@ void kmeans(Dataset *dataset, int K, int max_iter)
 
     for (iter = 0; iter < max_iter; iter++)
     {
+        /* 2. Assign every point to the closest centroid */
+        for (i = 0; i < K; i++)
+        {
+            clusters[i].size = 0;
+            clusters[i].capacity = 4;
+            clusters[i].data = malloc(clusters[i].capacity * sizeof(Vector));
+        }
+
         for (i = 0; i < dataset->count; i++)
         {
             min_distance = euclidean_distance(&dataset->vectors[i], &centroids[0]);
-            closest_cluster = 0;
+            closest_cluster_index = 0;
             for (k = 1; k < K; k++)
             {
                 distance = euclidean_distance(&dataset->vectors[i], &centroids[k]);
                 if (distance < min_distance)
                 {
                     min_distance = distance;
-                    closest_cluster = k;
+                    closest_cluster_index = k;
                 }
             }
-            assignments[i] = closest_cluster;
+            append_to_cluster(&clusters[closest_cluster_index], &dataset->vectors[i]);
         }
 
+        /* 2. Update centeroids */
         for (k = 0; k < K; k++)
         {
-            cluster_sizes[k] = 0;
-            for (j = 0; j < dataset->dimension; j++)
-            {
+            for (j = 0; j < dataset->dimension; j++) {
                 new_centroids[k].data[j] = 0.0;
             }
-        }
-
-        for (i = 0; i < dataset->count; i++)
-        {
-            k = assignments[i];
-            cluster_sizes[k]++;
-            for (j = 0; j < dataset->dimension; j++)
-            {
-                new_centroids[k].data[j] += dataset->vectors[i].data[j];
-            }
-        }
-
-        for (k = 0; k < K; k++)
-        {
-            if (cluster_sizes[k] > 0)
+            for (i = 0; i < clusters[k].size; i++)
             {
                 for (j = 0; j < dataset->dimension; j++)
                 {
-                    new_centroids[k].data[j] /= cluster_sizes[k];
+                    printf("%f ", clusters[k].data[i].data[j]);
+                    new_centroids[k].data[j] += clusters[k].data[i].data[j];
                 }
+            }
+            for (j = 0; j < dataset->dimension; j++)
+            {
+                new_centroids[k].data[j] /= clusters[k].size;
+            }
+        }
+
+        for (k = 0; k < K; k++)
+        {
+            for (j = 0; j < dataset->dimension; j++)
+            {
+                printf("Value: %f\n", new_centroids[k].data[j]);
+                centroids[k].data[j] = new_centroids[k].data[j];
             }
         }
 
@@ -356,14 +510,6 @@ void kmeans(Dataset *dataset, int K, int max_iter)
             if (distance > max_change)
             {
                 max_change = distance;
-            }
-        }
-
-        for (k = 0; k < K; k++)
-        {
-            for (j = 0; j < dataset->dimension; j++)
-            {
-                centroids[k].data[j] = new_centroids[k].data[j];
             }
         }
 
@@ -390,9 +536,7 @@ void kmeans(Dataset *dataset, int K, int max_iter)
         free(new_centroids[k].data);
     }
     free(centroids);
-    free(new_centroids);
-    free(assignments);
-    free(cluster_sizes);
+    free(new_centroids);    
 }
 
 int my_strlen(const char *str)
@@ -401,67 +545,4 @@ int my_strlen(const char *str)
     while (str[len] != '\0')
         len++;
     return len;
-}
-
-void my_strcpy(char *dest, const char *src)
-{
-    int i = 0;
-    while (src[i] != '\0')
-    {
-        dest[i] = src[i];
-        i++;
-    }
-    dest[i] = '\0';
-}
-
-char *my_strtok(char *str, const char *delim)
-{
-    static char *saved_str = NULL;
-    char *token_start;
-    int i;
-
-    if (str != NULL)
-    {
-        saved_str = str;
-    }
-
-    if (saved_str == NULL)
-        return NULL;
-
-    while (*saved_str != '\0')
-    {
-        for (i = 0; delim[i] != '\0'; i++)
-        {
-            if (*saved_str == delim[i])
-                break;
-        }
-        if (delim[i] == '\0')
-            break;
-        saved_str++;
-    }
-
-    if (*saved_str == '\0')
-    {
-        saved_str = NULL;
-        return NULL;
-    }
-
-    token_start = saved_str;
-
-    while (*saved_str != '\0')
-    {
-        for (i = 0; delim[i] != '\0'; i++)
-        {
-            if (*saved_str == delim[i])
-            {
-                *saved_str = '\0';
-                saved_str++;
-                return token_start;
-            }
-        }
-        saved_str++;
-    }
-
-    saved_str = NULL;
-    return token_start;
 }
