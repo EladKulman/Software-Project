@@ -409,7 +409,8 @@ def fit_adapter(
 
     Edit this function to make sure the tests work with your code
     """
-    result = fit(datapoints, np.ascontiguousarray(initial_centroids), eps, max_iter)
+    # (args, "OOiidii", &initial_centroids_py, &datapoints_py, &K, &max_iter, &eps, &N, &d)) {
+    result = fit(initial_centroids.tolist(), datapoints.tolist(), initial_centroids.shape[0], max_iter, eps, datapoints.shape[0], datapoints.shape[1])
     return np.asarray(result)
 
 
@@ -447,7 +448,7 @@ def kmeans_reference(datapoints, init_centroids, eps=0.001, max_iter=300):
 
 
 def test_fit(trials=5):
-    print("Testing 'mykmeanspp.fit'")
+    print("Testing 'mykmeanssp.fit'")
     try:
         from sklearn import cluster as skl_cluster
     except ModuleNotFoundError:
@@ -455,15 +456,15 @@ def test_fit(trials=5):
         return
 
     try:
-        import mykmeanspp
+        import mykmeanssp
     except ModuleNotFoundError:
-        print_red("'mykmeanspp' module not found")
+        print_red("'mykmeanssp' module not found")
         return
 
     try:
-        fit = mykmeanspp.fit
+        fit = mykmeanssp.fit
     except AttributeError:
-        print_red("'mykmeanspp.fit' not found")
+        print_red("'mykmeanssp.fit' not found")
 
     for trial in range(1, trials + 1):
         print(f"trial {trial}:", end=" ")
