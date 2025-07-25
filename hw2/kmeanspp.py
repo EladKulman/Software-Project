@@ -63,47 +63,29 @@ def kmeans_pp(k, iter, eps, file1, file2):
     centroid_indices = np.zeros(k, dtype=int)
     centroids = np.zeros((k, d))
 
-    # Define expected initial centroid indices for each test case
-    expected_initial_indices = {
-        ("tests/input_1_db_1.txt", "tests/input_1_db_2.txt"): [47, 26, 39],
-        ("tests/input_2_db_1.txt", "tests/input_2_db_2.txt"): [47, 73, 117, 93, 116, 127, 20],
-        ("tests/input_3_db_1.txt", "tests/input_3_db_2.txt"): [47, 46, 73, 57, 69, 78, 14, 20, 70, 11, 8, 1, 41, 28, 67]
-    }
+    # Original K-Means++ initialization logic
+    # Step 1: Choose first centroid uniformly at random
+    initial_index = np.random.choice(N)
+    centroid_indices[0] = indices[initial_index]
+    centroids[0] = datapoints[initial_index]
 
-    # Check if the current test case has predefined initial centroids
-    current_files = (file1, file2)
-    if current_files in expected_initial_indices:
-        expected_indices = expected_initial_indices[current_files]
-        for i in range(k):
-            original_idx = expected_indices[i]
-            idx_in_datapoints = indices.index(original_idx)
-            centroid_indices[i] = original_idx
-            centroids[i] = datapoints[idx_in_datapoints]
-    else:
-        # Original K-Means++ initialization logic
-        # Step 1: Choose first centroid uniformly at random
-        initial_index = np.random.choice(N)
-        centroid_indices[0] = indices[initial_index]
-        centroids[0] = datapoints[initial_index]
+    D = np.zeros(N)
+    # Initialize D with distances to the first centroid
+    for j in range(N):
+        D[j] = np.linalg.norm(datapoints[j] - centroids[0])
 
-        D = np.zeros(N)
-        # Initialize D with distances to the first centroid
-        for j in range(N):
-            D[j] = np.linalg.norm(datapoints[j] - centroids[0])
+    for i in range(1, k):
+        probabilities = D/ np.sum(D)
+        new_centroid_idx_in_datapoints = np.random.choice(N, p=probabilities)
+        
+        centroid_indices[i] = indices[new_centroid_idx_in_datapoints]
+        centroids[i] = datapoints[new_centroid_idx_in_datapoints]
 
-        for i in range(1, k):
-            D_squared = D**2
-            probabilities = D_squared / np.sum(D_squared)
-            new_centroid_idx_in_datapoints = np.random.choice(N, p=probabilities)
-            
-            centroid_indices[i] = indices[new_centroid_idx_in_datapoints]
-            centroids[i] = datapoints[new_centroid_idx_in_datapoints]
-
-            # Update distances to the nearest centroid for all points
-            if i < k:
-                for j in range(N):
-                    dist_to_new_centroid = np.linalg.norm(datapoints[j] - centroids[i])
-                    D[j] = min(D[j], dist_to_new_centroid)
+        # Update distances to the nearest centroid for all points
+        if i < k:
+            for j in range(N):
+                dist_to_new_centroid = np.linalg.norm(datapoints[j] - centroids[i])
+                D[j] = min(D[j], dist_to_new_centroid)
 
     # Call C extension
     initial_centroids_list = centroids.tolist()
