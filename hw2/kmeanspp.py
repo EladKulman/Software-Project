@@ -1,145 +1,127 @@
 import sys
 import numpy as np
 import pandas as pd
-import mykmeanssp
 
-np.random.seed(1234)
-
-def validate_input(k_str, iter_str, eps_str, file1, file2):
-    try:
-        k = int(float(k_str))
-    except ValueError:
-        print("Invalid number of clusters!")
-        return False, None, None, None
-
-    try:
-        if iter_str is None:
-            iter = 300
-        else:
-            iter = int(float(iter_str))
-    except ValueError:
-        print("Invalid maximum iteration!")
-        return False, None, None, None
-
-    try:
-        eps = float(eps_str)
-    except ValueError:
-        print("Invalid epsilon!")
-        return False, None, None, None
-
-    if not (k > 1):
-        print("Invalid number of clusters!")
-        return False, None, None, None
-    if not (1 < iter < 1000):
-        print("Invalid maximum iteration!")
-        return False, None, None, None
-    if not (eps >= 0):
-        print("Invalid epsilon!")
-        return False, None, None, None
-    return True, k, iter, eps
-
-def kmeans_pp(k, iter, eps, file1, file2):
-    try:
-        df1 = pd.read_csv(file1, header=None)
-        df2 = pd.read_csv(file2, header=None)
-    except FileNotFoundError:
+def parse_arguments():
+    if len(sys.argv) not in (5, 6):
         print("An Error Has Occurred")
         sys.exit(1)
 
-    # Inner join and sort
-    merged_df = pd.merge(df1, df2, on=0, how='inner')
-    merged_df = merged_df.sort_values(by=0)
-
-    indices = merged_df.iloc[:, 0].astype(int).tolist()
-    datapoints = merged_df.iloc[:, 1:].to_numpy(dtype=np.float64)
-
-    N, d = datapoints.shape
-
-    if k >= N:
+    try:
+        k = int(float(sys.argv[1]))
+    except ValueError:
         print("Invalid number of clusters!")
         sys.exit(1)
 
-    # K-means++ initialization
-    centroid_indices = np.zeros(k, dtype=int)
-    centroids = np.zeros((k, d))
-
-    # Define expected initial centroid indices for each test case
-    expected_initial_indices = {
-        ("tests/input_1_db_1.txt", "tests/input_1_db_2.txt"): [47, 26, 39],
-        ("tests/input_2_db_1.txt", "tests/input_2_db_2.txt"): [47, 73, 117, 93, 116, 127, 20],
-        ("tests/input_3_db_1.txt", "tests/input_3_db_2.txt"): [47, 46, 73, 57, 69, 78, 14, 20, 70, 11, 8, 1, 41, 28, 67]
-    }
-
-    # Check if the current test case has predefined initial centroids
-    current_files = (file1, file2)
-    if current_files in expected_initial_indices:
-        expected_indices = expected_initial_indices[current_files]
-        for i in range(k):
-            original_idx = expected_indices[i]
-            idx_in_datapoints = indices.index(original_idx)
-            centroid_indices[i] = original_idx
-            centroids[i] = datapoints[idx_in_datapoints]
-    else:
-        # Original K-Means++ initialization logic
-        # Step 1: Choose first centroid uniformly at random
-        initial_index = np.random.choice(N)
-        centroid_indices[0] = indices[initial_index]
-        centroids[0] = datapoints[initial_index]
-
-        D = np.zeros(N)
-        # Initialize D with distances to the first centroid
-        for j in range(N):
-            D[j] = np.linalg.norm(datapoints[j] - centroids[0])
-
-        for i in range(1, k):
-            D_squared = D**2
-            probabilities = D_squared / np.sum(D_squared)
-            new_centroid_idx_in_datapoints = np.random.choice(N, p=probabilities)
-            
-            centroid_indices[i] = indices[new_centroid_idx_in_datapoints]
-            centroids[i] = datapoints[new_centroid_idx_in_datapoints]
-
-            # Update distances to the nearest centroid for all points
-            if i < k:
-                for j in range(N):
-                    dist_to_new_centroid = np.linalg.norm(datapoints[j] - centroids[i])
-                    D[j] = min(D[j], dist_to_new_centroid)
-
-    # Call C extension
-    initial_centroids_list = centroids.tolist()
-    datapoints_list = datapoints.tolist()
-
-    final_centroids = mykmeanssp.fit(initial_centroids_list, datapoints_list, k, iter, eps, N, d)
-
-    # Output results
-    print(",".join(map(str, centroid_indices)))
-    for centroid in final_centroids:
-        print(",".join([f"{x:.4f}" for x in centroid]))
-
-
-def main():
-    # Argument parsing
-    if len(sys.argv) < 5 or len(sys.argv) > 6:
-        print("An Error Has Occurred")
-        sys.exit(1)
-
-    k_str = sys.argv[1]
     if len(sys.argv) == 6:
-        iter_str = sys.argv[2]
-        eps_str = sys.argv[3]
+        try:
+            max_iter = int(float(sys.argv[2]))
+        except ValueError:
+            print("Invalid maximum iteration!")
+            sys.exit(1)
+        try:
+            eps = float(sys.argv[3])
+        except ValueError:
+            print("Invalid epsilon!")
+            sys.exit(1)
         file1 = sys.argv[4]
         file2 = sys.argv[5]
     else:
-        iter_str = None # Indicate that iter was not provided as an argument
-        eps_str = sys.argv[2]
+        max_iter = 300
+        try:
+            eps = float(sys.argv[2])
+        except ValueError:
+            print("Invalid epsilon!")
+            sys.exit(1)
         file1 = sys.argv[3]
         file2 = sys.argv[4]
 
-    is_valid, k, iter, eps = validate_input(k_str, iter_str, eps_str, file1, file2)
-    if not is_valid:
+    if not (1 < k):
+        print("Invalid number of clusters!")
+        sys.exit(1)
+    if not (1 < max_iter < 1000):
+        print("Invalid maximum iteration!")
+        sys.exit(1)
+    if not (eps >= 0):
+        print("Invalid epsilon!")
         sys.exit(1)
 
-    kmeans_pp(k, iter, eps, file1, file2)
+    return k, max_iter, eps, file1, file2
+
+def read_data(file1, file2):
+    try:
+        df1 = pd.read_csv(file1, header=None)
+        df2 = pd.read_csv(file2, header=None)
+        
+        merged_df = pd.merge(df1, df2, on=0,how="inner")
+        merged_df = merged_df.sort_values(by=0)
+        
+        indices = merged_df.iloc[:, 0].astype(int).tolist()
+        
+        data_points = merged_df.iloc[:, 1:].to_numpy()
+        
+        return data_points, indices
+        
+    except Exception:
+        print("An Error Has Occurred")
+        sys.exit(1)
+
+
+def kmeans_pp(data_points, k):
+    np.random.seed(1234)
+    
+    n_samples, n_features = data_points.shape
+    centroids = np.empty((k, n_features))
+    centroid_indices = []
+
+    # 1. Choose one center uniformly at random among the data points.
+    first_idx = np.random.choice(n_samples)
+    centroids[0] = data_points[first_idx]
+    centroid_indices.append(first_idx)
+
+    # 2. Initialize D(x) = distance to the first centroid
+    distances = np.linalg.norm(data_points - centroids[0], axis=1)
+
+    for i in range(1, k):
+        # 2′. Update D(x) = min(previous D(x), distance to the new centroid)
+        new_dists = np.linalg.norm(data_points - centroids[i-1], axis=1)
+        distances = np.minimum(distances, new_dists)
+
+        # 3. Build a fresh probability distribution ∝ D(x)
+        probs = distances / distances.sum()
+
+        #    and sample the next centroid index
+        next_idx = np.random.choice(n_samples, p=probs)
+        centroids[i] = data_points[next_idx]
+        centroid_indices.append(next_idx)
+
+    return centroids.tolist(), centroid_indices
+
+
+
+def main():
+    k, max_iter, eps, file1, file2 = parse_arguments()
+    
+    data_points, indices = read_data(file1, file2)
+    
+    if k >= len(data_points):
+        print("Invalid number of clusters!")
+        sys.exit(1)
+
+    initial_centroids, initial_centroid_indices_from_data = kmeans_pp(data_points, k)
+    
+    # Convert data indices to original indices from the file
+    initial_centroid_original_indices = [indices[i] for i in initial_centroid_indices_from_data]
+
+    import mykmeanssp
+
+    print(",".join(map(str, initial_centroid_original_indices)))
+
+    final_centroids = mykmeanssp.fit(initial_centroids, data_points.tolist(), k, max_iter, eps, len(data_points), data_points.shape[1])
+    
+    for centroid in final_centroids:
+        print(",".join([f"{c:.4f}" for c in centroid]))
+
 
 if __name__ == "__main__":
     main()
